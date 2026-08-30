@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Queens Plaza Washing</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background: #f4f6f7; padding: 30px; margin: 0; }
+  .box { background: white; padding: 30px 45px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 520px; margin: 0 auto; transition: max-width 0.2s ease; }
+  .box.box-wide { max-width: 1100px; padding: 30px 40px; }
+  h2 { color: #14655c; text-align: center; font-size: 22px; }
+  label { font-size: 13px; color: #555; margin-top: 10px; display: block; }
+  input, select {
+    width: 100%; padding: 12px; margin-top: 4px; border: 1px solid #ccc;
+    border-radius: 5px; box-sizing: border-box; font-size: 16px;
+  }
+  button {
+    width: 100%; padding: 14px; background: #14655c; color: white; border: none;
+    border-radius: 5px; margin-top: 18px; cursor: pointer; font-size: 16px;
+  }
+  button:disabled { background: #999; cursor: not-allowed; }
+  #msg, #updateMsg, #loginError { text-align: center; margin-top: 12px; font-size: 14px; word-wrap: break-word; }
+  #loginError { color: red; }
+  .tab-btn { flex: 1; margin-top: 0; padding: 12px 4px; font-size: 14px; }
+  #newVehicleNote { display:none; font-size:12px; color:#a15c00; margin-top:4px; }
+
+  .dash-label { font-size:12px; color:#888; letter-spacing:0.5px; text-transform:uppercase; }
+  .dash-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 16px; margin-bottom: 30px; }
+  .dash-card { background: #fafbfb; border: 1px solid #eee; border-radius: 12px; padding: 26px 28px; }
+  .dash-card h4 { margin:0 0 14px; font-size:15px; color:#14655c; }
+  .dash-card .metric-row { display:flex; justify-content:space-between; font-size:14px; color:#444; padding:5px 0; border-top:1px solid #f0f0f0; }
+  .dash-card .metric-row:first-of-type { border-top:none; }
+  .dash-card .metric-row b { color:#1a1a1a; }
+  .dash-card .big-number { font-size:34px; font-weight:bold; color:#14655c; margin-bottom:2px; }
+  .dash-section-title { font-size:16px; color:#14655c; margin-top:28px; margin-bottom:10px; }
+  .dash-table-wrap { border: 1px solid #eee; border-radius: 10px; overflow: hidden; overflow-x:auto; }
+  table.dash-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.dash-table th { background: #f4f6f7; text-align: left; padding: 12px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+  table.dash-table td { padding: 12px 16px; border-top: 1px solid #f0f0f0; white-space: nowrap; }
+  .status-pill { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+  .status-pill.paid { background: #e2f4ea; color: #1a8a4a; }
+  .status-pill.pending { background: #fdf1e0; color: #a15c00; }
+
+  @media (max-width: 480px) {
+    body { padding: 12px; }
+    .box { padding: 20px 18px; max-width: 100%; border-radius: 8px; }
+    .box.box-wide { padding: 16px; }
+    h2 { font-size: 19px; }
+    .dash-cards { grid-template-columns: 1fr; }
+    table.dash-table { font-size: 12px; }
+    table.dash-table th, table.dash-table td { padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="box" id="loginBox">
+  <h2>Queens Plaza Washing</h2>
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="pin" placeholder="PIN">
+  <button onclick="login()">Log In</button>
+  <div id="loginError"></div>
+</div>
+
+<div class="box" id="mainBox" style="display:none;">
+  <h2>Queens Plaza Washing</h2>
+  <p style="text-align:center; color:#888; font-size:13px;">Staff: <b id="staffNameLabel"></b> &nbsp;|&nbsp; <a href="#" onclick="logout()" style="color:#a15c00;">Log out</a></p>
+
+  <div style="display:flex; gap:8px; margin-bottom:10px;">
+    <button type="button" class="tab-btn" onclick="showNewWash()" id="tabNew" style="background:#14655c;">New Wash</button>
+    <button type="button" class="tab-btn" onclick="showUpdatePayment()" id="tabUpdate" style="background:#999;">Edit Wash</button>
+    <button type="button" class="tab-btn" onclick="showDashboard()" id="tabDash" style="background:#999;">Dashboard</button>
+  </div>
+
+  <div id="newWashSection">
+    <label>Model</label>
+    <input list="modelList" id="model" oninput="onModelInput()" placeholder="Type or select a vehicle model">
+    <datalist id="modelList"></datalist>
+
+    <label>Make</label>
+    <input type="text" id="make" readonly style="background:#f4f4f4;">
+
+    <div id="newVehicleNote">This vehicle isn't in our list yet — it'll still be saved, and you can add it to Vehicle Types later.</div>
+
+    <label>Service Type</label>
+    <select id="serviceType"></select>
+
+    <label>Plate Number <span style="color:red;">*</span></label>
+    <input type="text" id="plate">
+
+    <label>Customer Phone Number</label>
+    <input type="text" id="phone">
+
+    <label>Price (GH₵)</label>
+    <input type="number" id="price" placeholder="Enter price">
+
+    <label>Payment Status</label>
+    <select id="status">
+      <option value="Paid">Paid</option>
+      <option value="Pending">Pending</option>
+    </select>
+
+    <button onclick="submitWash()">Submit Wash</button>
+    <div id="msg"></div>
+  </div>
+
+  <div id="updatePaymentSection" style="display:none;">
+    <label>Enter Wash ID (e.g. CW-0003)</label>
+    <input type="text" id="lookupWashId">
+    <button onclick="lookupWash()">Find Wash</button>
+
+    <div id="lookupResult" style="margin-top:16px; display:none;">
+      <p style="font-size:14px; color:#333;">
+        <b id="lookupPlate"></b><br>
+        <span id="lookupDetails"></span>
+      </p>
+      <label>Price (GH₵)</label>
+      <input type="number" id="editPrice">
+      <label>Payment Status</label>
+      <select id="editStatus">
+        <option value="Paid">Paid</option>
+        <option value="Pending">Pending</option>
+      </select>
+      <button onclick="saveWashUpdate()" style="background:#1a8a4a;">Save Changes</button>
+    </div>
+    <div id="updateMsg"></div>
+  </div>
+
+  <div id="dashboardSection" style="display:none;">
+    <div id="dashLoading" style="text-align:center; color:#888; padding:30px 0;">Loading...</div>
+    <div id="dashContent" style="display:none;">
+      <p class="dash-label" style="margin-top:6px;">Executive Overview</p>
+      <h2 style="text-align:left; margin-top:2px; margin-bottom:20px;">Wash Dashboard</h2>
+      <div class="dash-cards" id="summaryCards"></div>
+      <h3 class="dash-section-title">Daily Report — Last 7 Days</h3>
+      <div class="dash-table-wrap"><table class="dash-table" id="dailyTable"></table></div>
+      <h3 class="dash-section-title">Weekly Report — Last 4 Weeks</h3>
+      <div class="dash-table-wrap"><table class="dash-table" id="weeklyTable"></table></div>
+      <h3 class="dash-section-title">Monthly Report — Last 12 Months</h3>
+      <div class="dash-table-wrap"><table class="dash-table" id="monthlyTable"></table></div>
+      <h3 class="dash-section-title">Today's Washes</h3>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Wash ID</th><th>Plate</th><th>Model</th><th>Price</th><th>Status</th></tr></thead>
+          <tbody id="dashTodayList"></tbody>
+        </table>
+      </div>
+    </div>
+    <button onclick="loadDashboard()" style="margin-top:18px; max-width:200px;">Refresh</button>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'PASTE_YOUR_API_URL_HERE'; // must end in /exec
+
+  function apiGet(action, params) {
+    params = params || {};
+    let url = API_URL + '?action=' + encodeURIComponent(action);
+    Object.keys(params).forEach(k => url += '&' + k + '=' + encodeURIComponent(params[k]));
+    return fetch(url).then(r => r.json());
+  }
+
+  function apiPost(action, payload) {
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, payload: payload })
+    }).then(r => r.json());
+  }
+
+  let vehicleData = {};
+  let modelIndex = {};
+  let staffName = sessionStorage.getItem('staffName');
+
+  if (staffName) showApp();
+
+  function login() {
+    const username = document.getElementById('username').value;
+    const pin = document.getElementById('pin').value;
+    document.getElementById('loginError').innerText = "Checking...";
+
+    apiPost('login', { username: username, pin: pin }).then(function(result) {
+      if (result.success) {
+        staffName = result.staffName;
+        sessionStorage.setItem('staffName', staffName);
+        showApp();
+      } else if (result.locked) {
+        document.getElementById('loginError').innerText = "Too many failed attempts. Please wait 15 minutes and try again.";
+      } else {
+        document.getElementById('loginError').innerText = "Invalid username or PIN.";
+      }
+    }).catch(function(err) {
+      document.getElementById('loginError').innerText = "Error: " + err.message;
+    });
+  }
+
+  function logout() {
+    sessionStorage.removeItem('staffName');
+    location.reload();
+  }
+
+  function showApp() {
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('mainBox').style.display = 'block';
+    document.getElementById('staffNameLabel').innerText = staffName;
+    loadVehicleData();
+  }
+
+  function loadVehicleData() {
+    apiGet('vehicleData').then(function(data) {
+      vehicleData = data;
+      const modelList = document.getElementById('modelList');
+      Object.keys(data.makes).forEach(make => {
+        data.makes[make].forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.model;
+          opt.label = make;
+          modelList.appendChild(opt);
+          modelIndex[m.model.toLowerCase()] = { make: make, model: m.model, category: m.category };
+        });
+      });
+      const serviceSelect = document.getElementById('serviceType');
+      (data.services || []).forEach(service => {
+        const opt = document.createElement('option');
+        opt.value = service;
+        opt.text = service;
+        serviceSelect.appendChild(opt);
+      });
+    });
+  }
+
+  function onModelInput() {
+    const modelValue = document.getElementById('model').value.trim();
+    const match = modelIndex[modelValue.toLowerCase()];
+    const note = document.getElementById('newVehicleNote');
+    if (match) {
+      document.getElementById('make').value = match.make;
+      note.style.display = 'none';
+    } else {
+      document.getElementById('make').value = modelValue;
+      note.style.display = modelValue ? 'block' : 'none';
+    }
+  }
+
+  function findVehicleMatch(model) {
+    return modelIndex[model.trim().toLowerCase()] || null;
+  }
+
+  function submitWash() {
+    const plate = document.getElementById('plate').value.trim();
+    if (!plate) {
+      document.getElementById('msg').innerText = "Plate Number is required.";
+      document.getElementById('plate').style.border = "2px solid red";
+      return;
+    }
+    document.getElementById('plate').style.border = "1px solid #ccc";
+
+    const submitBtn = document.querySelector('#newWashSection button');
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Saving...";
+
+    const model = document.getElementById('model').value.trim();
+    const match = findVehicleMatch(model);
+    const make = match ? match.make : model;
+    const category = match ? match.category : 'Other';
+
+    const data = {
+      make: make, model: model, category: category,
+      serviceType: document.getElementById('serviceType').value,
+      plate: plate,
+      phone: document.getElementById('phone').value,
+      status: document.getElementById('status').value,
+      price: document.getElementById('price').value,
+      staff: staffName
+    };
+
+    document.getElementById('msg').innerText = "Saving...";
+    apiPost('submitWash', data).then(function(result) {
+      if (result.error) throw new Error(result.error);
+      onSaved(result);
+    }).catch(function(err) {
+      document.getElementById('msg').innerText = "Error: " + err.message;
+      submitBtn.disabled = false;
+      submitBtn.innerText = "Submit Wash";
+    });
+  }
+
+  function onSaved(result) {
+    const submitBtn = document.querySelector('#newWashSection button');
+    document.getElementById('msg').innerText = "Saved! Wash ID: " + result.washId;
+    submitBtn.disabled = false;
+    submitBtn.innerText = "Submit Wash";
+
+    document.getElementById('plate').value = '';
+    document.getElementById('phone').value = '';
+    document.getElementById('price').value = '';
+    document.getElementById('status').value = 'Paid';
+    document.getElementById('make').value = '';
+    document.getElementById('model').value = '';
+    document.getElementById('newVehicleNote').style.display = 'none';
+    document.getElementById('serviceType').selectedIndex = 0;
+
+    setTimeout(function() {
+      document.getElementById('msg').innerText = '';
+    }, 3000);
+  }
+
+  function setActiveTab(tab) {
+    document.getElementById('newWashSection').style.display = tab === 'new' ? 'block' : 'none';
+    document.getElementById('updatePaymentSection').style.display = tab === 'edit' ? 'block' : 'none';
+    document.getElementById('dashboardSection').style.display = tab === 'dash' ? 'block' : 'none';
+    document.getElementById('tabNew').style.background = tab === 'new' ? '#14655c' : '#999';
+    document.getElementById('tabUpdate').style.background = tab === 'edit' ? '#14655c' : '#999';
+    document.getElementById('tabDash').style.background = tab === 'dash' ? '#14655c' : '#999';
+    document.getElementById('mainBox').classList.toggle('box-wide', tab === 'dash');
+  }
+
+  function showNewWash() { setActiveTab('new'); }
+  function showUpdatePayment() { setActiveTab('edit'); }
+  function showDashboard() { setActiveTab('dash'); loadDashboard(); }
+
+  function buildReportTable(tableEl, rows) {
+    let html = '<thead><tr><th>Period</th><th>Cars Washed</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th></tr></thead><tbody>';
+    if (!rows || rows.length === 0) {
+      html += '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">No data.</td></tr>';
+    } else {
+      rows.forEach(function(r) {
+        html += '<tr><td><b>' + r.label + '</b></td><td>' + r.cars + '</td><td>GH₵' + r.revenue +
+          '</td><td>GH₵' + r.expenses + '</td><td>GH₵' + r.netProfit + '</td></tr>';
+      });
+    }
+    html += '</tbody>';
+    tableEl.innerHTML = html;
+  }
+
+  function loadDashboard() {
+    document.getElementById('dashLoading').style.display = 'block';
+    document.getElementById('dashContent').style.display = 'none';
+
+    apiGet('dashboard').then(function(data) {
+      const cardsEl = document.getElementById('summaryCards');
+      cardsEl.innerHTML = '';
+      (data.summary || []).forEach(function(s) {
+        const card = document.createElement('div');
+        card.className = 'dash-card';
+        card.innerHTML =
+          '<h4>' + s.label + '</h4>' +
+          '<div class="big-number">' + s.cars + '</div>' +
+          '<div class="dash-label" style="margin-bottom:14px;">cars washed</div>' +
+          '<div class="metric-row"><span>Revenue</span><b>GH₵' + s.revenue + '</b></div>' +
+          '<div class="metric-row"><span>Expenses</span><b>GH₵' + s.expenses + '</b></div>' +
+          '<div class="metric-row"><span>Net Profit</span><b>GH₵' + s.netProfit + '</b></div>';
+        cardsEl.appendChild(card);
+      });
+
+      buildReportTable(document.getElementById('dailyTable'), data.daily);
+      buildReportTable(document.getElementById('weeklyTable'), data.weekly);
+      buildReportTable(document.getElementById('monthlyTable'), data.monthly);
+
+      const listEl = document.getElementById('dashTodayList');
+      listEl.innerHTML = '';
+      if (data.todayList.length === 0) {
+        listEl.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999; padding:20px;">No washes yet today.</td></tr>';
+      } else {
+        data.todayList.forEach(function(w) {
+          const tr = document.createElement('tr');
+          const pillClass = w.status === 'Paid' ? 'paid' : 'pending';
+          tr.innerHTML =
+            '<td><b>' + w.washId + '</b></td>' + '<td>' + w.plate + '</td>' + '<td>' + w.model + '</td>' +
+            '<td>GH₵' + w.price + '</td>' + '<td><span class="status-pill ' + pillClass + '">' + w.status + '</span></td>';
+          listEl.appendChild(tr);
+        });
+      }
+
+      document.getElementById('dashLoading').style.display = 'none';
+      document.getElementById('dashContent').style.display = 'block';
+    }).catch(function(err) {
+      document.getElementById('dashLoading').innerText = "Error: " + err.message;
+    });
+  }
+
+  let currentLookupId = null;
+
+  function lookupWash() {
+    const washId = document.getElementById('lookupWashId').value.trim();
+    if (!washId) return;
+    document.getElementById('updateMsg').innerText = "Searching...";
+    document.getElementById('lookupResult').style.display = 'none';
+
+    apiGet('findWash', { washId: washId }).then(function(result) {
+      if (!result || result.error) {
+        document.getElementById('updateMsg').innerText = "Wash ID not found.";
+        return;
+      }
+      currentLookupId = washId;
+      document.getElementById('lookupPlate').innerText = result.plate + " — " + result.make + " " + result.model;
+      document.getElementById('lookupDetails').innerText = "Current status: " + result.status + " | Current price: GH₵" + result.price;
+      document.getElementById('editPrice').value = result.price;
+      document.getElementById('editStatus').value = result.status === 'Paid' ? 'Paid' : 'Pending';
+      document.getElementById('lookupResult').style.display = 'block';
+      document.getElementById('updateMsg').innerText = "";
+    }).catch(function(err) {
+      document.getElementById('updateMsg').innerText = "Error: " + err.message;
+    });
+  }
+
+  function saveWashUpdate() {
+    if (!currentLookupId) return;
+    const newPrice = document.getElementById('editPrice').value;
+    const newStatus = document.getElementById('editStatus').value;
+
+    if (newPrice === '' || Number(newPrice) < 0) {
+      document.getElementById('updateMsg').innerText = "Please enter a valid price.";
+      return;
+    }
+
+    document.getElementById('updateMsg').innerText = "Updating...";
+    apiPost('updateWash', { washId: currentLookupId, price: newPrice, status: newStatus }).then(function(result) {
+      if (result.error) throw new Error(result.error);
+      document.getElementById('updateMsg').innerText = "Updated successfully — Price: GH₵" + newPrice + ", Status: " + newStatus;
+      setTimeout(function() {
+        document.getElementById('lookupWashId').value = '';
+        document.getElementById('lookupResult').style.display = 'none';
+        document.getElementById('updateMsg').innerText = '';
+        currentLookupId = null;
+      }, 3000);
+    }).catch(function(err) {
+      document.getElementById('updateMsg').innerText = "Error: " + err.message;
+    });
+  }
+</script>
+</body>
+</html>
