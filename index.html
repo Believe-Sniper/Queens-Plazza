@@ -152,21 +152,13 @@
 </div>
 
 <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbyzwhNK-3dvQBG5LvCAgQM4jlnGyr9xOVwd9mLuXc8ATBCCBhHlog8kK5Y2FLJoMjMt/execc'; // must end in /exec
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyzwhNK-3dvQBG5LvCAgQM4jlnGyr9xOVwd9mLuXc8ATBCCBhHlog8kK5Y2FLJoMjMt/exec'; // must end in /exec
 
   function apiGet(action, params) {
     params = params || {};
     let url = API_URL + '?action=' + encodeURIComponent(action);
     Object.keys(params).forEach(k => url += '&' + k + '=' + encodeURIComponent(params[k]));
     return fetch(url).then(r => r.json());
-  }
-
-  function apiPost(action, payload) {
-    return fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: action, payload: payload })
-    }).then(r => r.json());
   }
 
   let vehicleData = {};
@@ -180,7 +172,7 @@
     const pin = document.getElementById('pin').value;
     document.getElementById('loginError').innerText = "Checking...";
 
-    apiPost('login', { username: username, pin: pin }).then(function(result) {
+    apiGet('login', { username: username, pin: pin }).then(function(result) {
       if (result.success) {
         staffName = result.staffName;
         sessionStorage.setItem('staffName', staffName);
@@ -276,7 +268,7 @@
     };
 
     document.getElementById('msg').innerText = "Saving...";
-    apiPost('submitWash', data).then(function(result) {
+    apiGet('submitWash', data).then(function(result) {
       if (result.error) throw new Error(result.error);
       onSaved(result);
     }).catch(function(err) {
@@ -416,7 +408,7 @@
     }
 
     document.getElementById('updateMsg').innerText = "Updating...";
-    apiPost('updateWash', { washId: currentLookupId, price: newPrice, status: newStatus }).then(function(result) {
+    apiGet('updateWash', { washId: currentLookupId, price: newPrice, status: newStatus }).then(function(result) {
       if (result.error) throw new Error(result.error);
       document.getElementById('updateMsg').innerText = "Updated successfully — Price: GH₵" + newPrice + ", Status: " + newStatus;
       setTimeout(function() {
