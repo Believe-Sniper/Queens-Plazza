@@ -154,12 +154,31 @@
 <script>
   const API_URL = 'https://script.google.com/macros/s/AKfycbyzwhNK-3dvQBG5LvCAgQM4jlnGyr9xOVwd9mLuXc8ATBCCBhHlog8kK5Y2FLJoMjMt/exec'; // must end in /exec
 
-  function apiGet(action, params) {
-    params = params || {};
-    let url = API_URL + '?action=' + encodeURIComponent(action);
+ let jsonpCounter = 0;
+
+function apiGet(action, params) {
+  params = params || {};
+  return new Promise(function(resolve, reject) {
+    const callbackName = 'jsonpCallback' + (jsonpCounter++);
+    let url = API_URL + '?action=' + encodeURIComponent(action) + '&callback=' + callbackName;
     Object.keys(params).forEach(k => url += '&' + k + '=' + encodeURIComponent(params[k]));
-    return fetch(url).then(r => r.json());
-  }
+
+    window[callbackName] = function(data) {
+      resolve(data);
+      delete window[callbackName];
+      script.remove();
+    };
+
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = function() {
+      reject(new Error('Failed to reach the server.'));
+      delete window[callbackName];
+      script.remove();
+    };
+    document.body.appendChild(script);
+  });
+}
 
   let vehicleData = {};
   let modelIndex = {};
